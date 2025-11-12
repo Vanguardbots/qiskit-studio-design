@@ -1,0 +1,255 @@
+# Global settings for the qiskit-studio deployment
+global:
+  hostname: "localhost"
+  scheme: "http"
+  additionalCORSOrigins: [] # This may be needed as backend services are called directly from the user's web browser.
+  llm:
+    chat:
+      # The base URL for the LLM service. This should be set dynamically or per environment.
+      baseUrl: ""
+      # The LLM model to use for chat and code generation. Default for local is 'granite3.3:8b'. For cloud, consider 'qwen2-5-coder-14b-qiskit'.
+      model: "granite4:tiny-h"
+
+      # Configuration for the secret containing the LLM API key.
+      # By default, the chart will create a new secret for each release.
+      secret:
+        # Set to true to create a new secret. If false, the chart assumes the secret already exists and must be pre-created.
+        create: false # Default to not creating the secret
+        # The name of the secret. If not set and create is true, a name is generated using the release name.
+        # If create is false, this is the name of the existing secret to use.
+        name: ""
+        # The key within the secret that holds the API key.
+        key: "apiKey"
+        # The value for the LLM API key. Must be provided if secret.create is true.
+        value: ""
+
+    embedding:
+      # Configuration for the Embedding LLM.
+      baseUrl: ""
+      model: "nomic-embed-text"
+      vectorSize: "768"
+      secret:
+        # Set to true to create a new secret. If false, the chart assumes the secret already exists and must be pre-created.
+        create: true # Default to not creating the secret
+        name: "vllm-deployment-vllm-service-token"
+        key: "apiKey"
+        value: "YOUR_EMBEDDING_API_KEY_HERE"
+
+    # Configuration for LLM init container checks
+    initChecks:
+      # When enabled (default), init containers will perform connectivity checks to LLM services
+      # When disabled, these checks will be skipped
+      enabled: true
+  # Configuration for image pull secrets.
+  # By default, the chart assumes the secret already exists and will not create it.
+  # Configuration for image pull secrets.
+  # By default, the chart assumes the secret already exists and will not create it.
+  # Set 'create: true' to have Helm create the secret.
+  imagePullSecrets:
+    create: false # Set to true to create the image pull secret.
+    name: null # The name of the image pull secret.
+    value: "" # The value of the image pull secret (e.g., your IBM Cloud Container Registry API key).
+
+# A list of additional environment variables to be added to all pods.
+# For example:
+# extraEnvVars:
+#   - name: FOO
+#     value: "bar"
+extraEnvVars: []
+
+
+# Frontend configuration
+frontend:
+  replicaCount: 1
+  image:
+    repository: qiskit-studio-ui
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: NodePort
+    port: 3000
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+    limits:
+      cpu: "200m"
+      memory: "256Mi"
+  # A list of additional environment variables to be added to the frontend pod.
+  # For example:
+  # extraEnvVars:
+  #   - name: FOO
+  #     value: "bar"
+  extraEnvVars: []
+
+# API backend configuration
+chat:
+  replicaCount: 1
+  image:
+    repository: chat-agent
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: NodePort
+    port: 8000
+    nodePort: null
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      cpu: "500m"
+      memory: "1Gi"
+  # A list of additional environment variables to be added to the chat pod.
+  # For example:
+  # extraEnvVars:
+  #   - name: FOO
+  #     value: "bar"
+  extraEnvVars: []
+
+# Codegen backend configuration
+codegen:
+  replicaCount: 1
+  image:
+    repository: codegen-agent
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: NodePort # Changed from NodePort, assuming exposure via ingress
+    port: 8000
+    nodePort: null
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      cpu: "500m"
+      memory: "1Gi"
+  # A list of additional environment variables to be added to the codegen pod.
+  # For example:
+  # extraEnvVars:
+  #   - name: FOO
+  #     value: "bar"
+  extraEnvVars: []
+
+# knowledge-mcp configuration
+knowledgeMcp:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/ai4quantum/maestro-knowledge
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8030
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      cpu: "500m"
+      memory: "1Gi"
+  readinessProbe:
+    initialDelaySeconds: 20
+    periodSeconds: 10
+    failureThreshold: 15
+  livenessProbe:
+    initialDelaySeconds: 20
+    periodSeconds: 10
+    failureThreshold: 15
+  # A list of additional environment variables to be added to the knowledgeMcp pod.
+  # For example:
+  # extraEnvVars:
+  #   - name: FOO
+  #     value: "bar"
+  extraEnvVars: []
+
+# coderun configuration
+coderun:
+  replicaCount: 1
+  image:
+    repository: coderun-agent
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: NodePort
+    port: 8000
+    nodePort: null
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+    limits:
+      cpu: "200m"
+      memory: "256Mi"
+  # A list of additional environment variables to be added to the coderun pod.
+  # For example:
+  # extraEnvVars:
+  #   - name: FOO
+  #     value: "bar"
+  extraEnvVars: []
+
+milvus:
+  image:
+    repository: milvusdb/milvus
+    tag: v2.6.1
+    pullPolicy: IfNotPresent
+  pvc:
+    storage: 4Gi
+  service:
+    type: ClusterIP
+    grpcPort: 19530
+    httpPort: 9091
+
+  # A list of additional environment variables to be added to the milvus pod.
+  # For example:
+  # extraEnvVars:
+  #   - name: FOO
+  #     value: "bar"
+  extraEnvVars: []
+
+# knowledge-preloader-job configuration
+knowledgePreloaderJob:
+  enabled: true
+  image:
+    repository: registry.access.redhat.com/ubi9/python-312-minimal
+    tag: 9.6-1758216611
+    pullPolicy: IfNotPresent
+  # Time in seconds to keep the job logs around after completion
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 4
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "500m"
+    limits:
+      memory: "2Gi"
+      cpu: "1"
+  # A list of additional environment variables to be added to the knowledge-preloader-job pod.
+  # For example:
+  # extraEnvVars:
+  #   - name: FOO
+  #     value: "bar"
+  extraEnvVars: []
+  documentUrls:
+    - "https://quantum.cloud.ibm.com/docs/en/tutorials/chsh-inequality"
+    - "https://quantum.cloud.ibm.com/docs/en/tutorials/combine-error-mitigation-techniques"
+    - "https://qiskit.github.io/qiskit-addon-sqd/tutorials/02_fermionic_lattice_hamiltonian.html"
+    - "https://quantum.cloud.ibm.com/docs/en/tutorials/operator-back-propagation"
+    - "https://quantum.cloud.ibm.com/docs/en/tutorials/quantum-approximate-optimization-algorithm"
+    - "https://quantum.cloud.ibm.com/docs/en/tutorials/quantum-kernel-training"
+    - "https://quantum.cloud.ibm.com/docs/en/tutorials/qunova-hivqe"
+
+# Maestro specific configurations
+maestro:
+  logLevel: INFO
+
+# Ingress configuration
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  tls:
+    enabled: false
+    secretName: ""
+  controllerType: "nginx"

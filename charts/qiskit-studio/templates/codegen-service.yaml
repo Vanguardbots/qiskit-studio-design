@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-codegen
+  labels: {{- include "qiskit-studio.labels" . | nindent 4 }}
+    app.kubernetes.io/component: codegen
+spec:
+  type: {{ .Values.codegen.service.type }}
+  ports:
+  - port: {{ .Values.codegen.service.port }}
+    protocol: TCP
+    targetPort: {{ .Values.codegen.service.port }}
+    {{- if eq .Values.codegen.service.type "NodePort" }}
+    nodePort: {{ .Values.codegen.service.nodePort }}
+    {{- end }}
+  selector:
+    {{- include "qiskit-studio.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: codegen

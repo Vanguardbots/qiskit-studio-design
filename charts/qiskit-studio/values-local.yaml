@@ -1,0 +1,72 @@
+# Helm values for deploying to a local kind environment.
+
+global:
+  hostname: "127.0.0.1"
+  # For local development, you might use a different LLM service or a mock.
+  llm:
+    chat:
+      # For local development, the chat and embedding LLM secrets are shared by default for convenience.
+      # This secret will be created automatically with a dummy value.
+      secret:
+        create: true
+        name: local-llm-secret
+        key: apiKey
+        value: "dummy"
+      baseUrl: http://host.docker.internal:11434/v1 # Example URL for a local LLM (Ollama default). Note: 'host.docker.internal' is a Docker Desktop feature. On Linux, you might need to use '--add-host host.docker.internal:host-gateway' with 'docker run' or replace with your host's IP address.
+      # The LLM model to use for chat and code generation. Default for local is 'granite3.3:8b'. For cloud, consider 'qwen2-5-coder-14b-qiskit'.
+      model: "granite3.3:8b"
+    embedding:
+      baseUrl: http://host.docker.internal:11434/v1
+      secret:
+        create: true
+        name: local-llm-secret # Shared with chat LLM secret by default
+        key: apiKey # Shared with chat LLM secret by default
+        value: "dummy"
+  # Image pull secret configuration for IBM Container Registry (ICR)
+  # Easiest local usage (one-liner):
+  #   --set-string icrkey="$MYAPIKEY"
+  # or scoped alternative:
+  #   --set-string global.imagePullSecrets.value="$MYAPIKEY"
+  # Behavior:
+  # - If a key is provided via icrkey or global.imagePullSecrets.value and no existingSecret is set,
+  #   the chart will create or reuse a docker-registry Secret named <release>-icrkey by default.
+  # - To use a specific name, set global.imagePullSecrets.name.
+  # - To use a pre-existing Secret, set global.imagePullSecrets.name to that name.
+  imagePullSecrets:
+    name: null
+
+
+
+frontend:
+  service:
+    # Expose the frontend via NodePort for easy access in a local kind cluster.
+    type: NodePort
+    port: 3000
+    nodePort: 30000 # Explicitly set a fixed NodePort for frontend
+  
+
+chat:
+  service:
+    # Expose the API service via NodePort.
+    type: NodePort
+    port: 8000
+    nodePort: 30001 # Explicitly set a fixed NodePort
+
+codegen:
+  service:
+    # Expose the codegen service via NodePort.
+    type: NodePort
+    port: 8000
+    nodePort: 30002 # Explicitly set a fixed NodePort
+
+coderun:
+  service:
+    type: NodePort
+    port: 8000
+    nodePort: 30003 # Explicitly set a fixed NodePort for coderun
+
+# Ingress is disabled by default for local development.
+# Services are exposed via NodePort instead.
+maestro:
+  logLevel: DEBUG
+

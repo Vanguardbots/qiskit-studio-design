@@ -1,0 +1,17 @@
+{{- if .Values.milvus.image.repository -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-milvus-config
+  labels: {{- include "qiskit-studio.labels" . | nindent 4 }}
+    app.kubernetes.io/component: milvus
+data:
+  embedEtcd.yaml: |
+    listen-client-urls: http://0.0.0.0:2379
+    advertise-client-urls: http://0.0.0.0:2379
+    quota-backend-bytes: 4294967296
+    auto-compaction-mode: revision
+    auto-compaction-retention: '1000'
+  user.yaml: |
+    # This is intentionally empty to use milvus defaults
+{{- end }}

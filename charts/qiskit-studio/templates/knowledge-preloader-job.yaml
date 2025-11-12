@@ -1,0 +1,73 @@
+{{- if .Values.knowledgePreloaderJob.enabled -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-preloader-job-{{ .Release.Revision }}
+  labels: {{- include "qiskit-studio.labels" . | nindent 4 }}
+    app.kubernetes.io/component: preloader-job
+  annotations:
+    # The helm hooks below were commented out to prevent `helm install` from
+    # waiting for this job to complete. This allows the command to return
+    # quickly while the job runs in the background. The job's initContainer
+    # ensures it waits for dependencies to be ready before executing.
+    # "helm.sh/hook": post-install,post-upgrade
+    # "helm.sh/hook-weight": "5"
+    # "helm.sh/hook-delete-policy": hook-succeeded
+    helm.sh/revision: "{{ .Release.Revision }}"
+    helm.sh/created-at: "{{ now | date "2006-01-02T15:04:05Z07:00" }}"
+spec:
+  template:
+    spec:
+      initContainers:
+      - name: wait-for-services
+        image: busybox:1.37
+        command:
+          - "/bin/sh"
+          - "-c"
+          - |
+            echo "--- Waiting for {{ .Release.Name }}-knowledge-mcp-service to be ready ---"
+            until nc -z {{ .Release.Name }}-knowledge-mcp-service {{ .Values.knowledgeMcp.service.port }};
+            do
+              echo "MCP service is not yet available. Retrying in 10 seconds..."
+              sleep 10
+            done
+            echo "--- MCP service is ready. Starting preloader job. ---"
+      containers:
+        - name: preloader
+          image: "{{ .Values.knowledgePreloaderJob.image.repository }}:{{ .Values.knowledgePreloaderJob.image.tag }}"
+          imagePullPolicy: {{ .Values.knowledgePreloaderJob.image.pullPolicy }}
+          workingDir: /app
+          command:
+            - "/bin/sh"
+            - "-c"
+            - |
+              pip install --no-cache-dir httpx html2text fastmcp && \
+              echo "--- Running RAG preloader script ---" && \
+              export JSON_ENCODED="true"
+              python3 scripts/add-rag-docs-remote-embed.py
+          env:
+{{- include "qiskit-studio.extraEnvVars" (dict "Values" .Values "extraEnvVars" .Values.knowledgePreloaderJob.extraEnvVars) | nindent 12 }}
+            - name: MCP_SERVER_URL
+              value: "http://{{ .Release.Name }}-knowledge-mcp-service:{{ .Values.knowledgeMcp.service.port }}/mcp/"
+          volumeMounts:
+            - name: qiskit-scripts
+              mountPath: /app/scripts
+            - name: qiskit-documentation
+              mountPath: /app/documentation
+          resources: {{- toYaml .Values.knowledgePreloaderJob.resources | nindent 12 }}
+      volumes:
+        - name: qiskit-scripts
+          configMap:
+            name: {{ include "qiskit-studio.scriptsConfigMapName" . }}
+        - name: qiskit-documentation
+          configMap:
+            name: {{ include "qiskit-studio.docsConfigMapName" . }}
+      restartPolicy: OnFailure
+      {{- $pullSecret := include "qiskit-studio.imagePullSecretName" . }}
+      {{- if $pullSecret }}
+      imagePullSecrets:
+        - name: {{ $pullSecret }}
+      {{- end }}
+  ttlSecondsAfterFinished: {{ .Values.knowledgePreloaderJob.ttlSecondsAfterFinished }}
+  backoffLimit: {{ .Values.knowledgePreloaderJob.backoffLimit }}
+{{- end }}

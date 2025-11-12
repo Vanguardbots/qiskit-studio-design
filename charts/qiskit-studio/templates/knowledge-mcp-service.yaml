@@ -1,0 +1,18 @@
+{{- if .Values.knowledgeMcp.replicaCount -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-knowledge-mcp-service
+  labels: {{- include "qiskit-studio.labels" . | nindent 4 }}
+    app.kubernetes.io/component: knowledge-mcp
+spec:
+  type: {{ .Values.knowledgeMcp.service.type }}
+  ports:
+  - name: http
+    port: {{ .Values.knowledgeMcp.service.port }}
+    protocol: TCP
+    targetPort: {{ .Values.knowledgeMcp.service.port }}
+  selector:
+    {{- include "qiskit-studio.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: knowledge-mcp
+{{- end }}

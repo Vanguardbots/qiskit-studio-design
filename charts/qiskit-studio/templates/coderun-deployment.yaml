@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-coderun
+  labels: {{- include "qiskit-studio.labels" . | nindent 4 }}
+    app.kubernetes.io/component: coderun
+spec:
+  replicas: {{ .Values.coderun.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "qiskit-studio.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: coderun
+  template:
+    metadata:
+      labels:
+        {{- include "qiskit-studio.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: coderun
+    spec:
+      containers:
+      - name: coderun
+        image: "{{ .Values.coderun.image.repository }}:{{ .Values.coderun.image.tag }}"
+        imagePullPolicy: {{ .Values.coderun.image.pullPolicy }}
+        env:
+{{- include "qiskit-studio.extraEnvVars" (dict "Values" .Values "extraEnvVars" .Values.coderun.extraEnvVars) | nindent 8 }}
+        ports:
+        - containerPort: {{ .Values.coderun.service.port }}
+      {{- $pullSecret := include "qiskit-studio.imagePullSecretName" . }}
+      {{- if $pullSecret }}
+      imagePullSecrets:
+        - name: {{ $pullSecret }}
+      {{- end }}

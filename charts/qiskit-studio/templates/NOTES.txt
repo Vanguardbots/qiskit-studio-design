@@ -1,0 +1,21 @@
+{{- define "qiskit-studio.notes" -}}
+Qiskit Studio has been successfully installed!
+
+IMPORTANT: The application pods may take a few minutes to start up, especially on the first installation as the knowledge base is preloaded with documentation.
+
+You can monitor the status of all pods by running the following command:
+  kubectl get pods -l app.kubernetes.io/instance={{ .Release.Name }} --watch
+
+Once all pods are in the 'Running' or 'Completed' state, you can access the Qiskit Studio frontend at the following addresses:
+{{- $origin := include "qiskit-studio.frontend.origin" . -}}
+{{ $urls := splitList "," $origin -}}
+{{- range $url := $urls }}
+  {{ $url }}
+{{- end }}
+
+LLM Configuration:
+  Chat LLM URL:          {{ .Values.global.llm.chat.baseUrl }}
+  Embedding LLM URL:     {{ .Values.global.llm.embedding.baseUrl }}
+
+{{- end -}}
+{{- .Values.notes | default (include "qiskit-studio.notes" .) -}}

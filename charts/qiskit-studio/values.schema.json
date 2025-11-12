@@ -1,0 +1,1012 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "Qiskit Studio Helm Chart Values",
+  "description": "Schema for validating values.yaml for the qiskit-studio Helm chart",
+  "type": "object",
+  "properties": {
+    "global": {
+      "type": "object",
+      "description": "Global settings for the qiskit-studio deployment",
+      "properties": {
+        "hostname": {
+          "type": "string",
+          "description": "Hostname for the deployment",
+          "default": "localhost"
+        },
+        "scheme": {
+          "type": "string",
+          "description": "URL scheme (http or https)",
+          "enum": ["http", "https"],
+          "default": "http"
+        },
+        "additionalCORSOrigins": {
+          "type": "array",
+          "description": "Additional CORS origins to allow",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "llm": {
+          "type": "object",
+          "description": "LLM configuration settings",
+          "properties": {
+            "chat": {
+              "type": "object",
+              "description": "Chat LLM configuration",
+              "properties": {
+                "baseUrl": {
+                  "type": "string",
+                  "description": "Base URL for the LLM service"
+                },
+                "model": {
+                  "type": "string",
+                  "description": "LLM model to use for chat and code generation",
+                  "default": "granite3.3:8b"
+                },
+                "secret": {
+                  "type": "object",
+                  "description": "Configuration for the secret containing the LLM API key",
+                  "properties": {
+                    "create": {
+                      "type": "boolean",
+                      "description": "Whether to create a new secret",
+                      "default": false
+                    },
+                    "name": {
+                      "type": "string",
+                      "description": "Name of the secret"
+                    },
+                    "key": {
+                      "type": "string",
+                      "description": "Key within the secret that holds the API key",
+                      "default": "apiKey"
+                    },
+                    "value": {
+                      "type": "string",
+                      "description": "Value for the LLM API key"
+                    }
+                  }
+                }
+              }
+            },
+            "embedding": {
+              "type": "object",
+              "description": "Embedding LLM configuration",
+              "properties": {
+                "baseUrl": {
+                  "type": "string",
+                  "description": "Base URL for the Embedding LLM service"
+                },
+                "model": {
+                  "type": "string",
+                  "description": "Embedding model to use",
+                  "default": "nomic-embed-text"
+                },
+                "vectorSize": {
+                  "type": "string",
+                  "description": "Vector size for embeddings",
+                  "default": "768"
+                },
+                "secret": {
+                  "type": "object",
+                  "description": "Configuration for the secret containing the Embedding LLM API key",
+                  "properties": {
+                    "create": {
+                      "type": "boolean",
+                      "description": "Whether to create a new secret",
+                      "default": true
+                    },
+                    "name": {
+                      "type": "string",
+                      "description": "Name of the secret",
+                      "default": "vllm-deployment-vllm-service-token"
+                    },
+                    "key": {
+                      "type": "string",
+                      "description": "Key within the secret that holds the API key",
+                      "default": "apiKey"
+                    },
+                    "value": {
+                      "type": "string",
+                      "description": "Value for the Embedding LLM API key",
+                      "default": "YOUR_EMBEDDING_API_KEY_HERE"
+                    }
+                  }
+                }
+              }
+            },
+            "initChecks": {
+              "type": "object",
+              "description": "Configuration for LLM init container checks",
+              "properties": {
+                "enabled": {
+                  "type": "boolean",
+                  "description": "Whether to enable init container checks",
+                  "default": true
+                }
+              }
+            }
+          }
+        },
+        "imagePullSecrets": {
+          "type": "object",
+          "description": "Configuration for image pull secrets",
+          "properties": {
+            "create": {
+              "type": "boolean",
+              "description": "Whether to create the image pull secret",
+              "default": false
+            },
+            "name": {
+              "type": ["string", "null"],
+              "description": "Name of the image pull secret"
+            },
+            "value": {
+              "type": "string",
+              "description": "Value of the image pull secret"
+            }
+          }
+        }
+      }
+    },
+    "extraEnvVars": {
+      "type": "array",
+      "description": "Additional environment variables to be added to all pods",
+      "items": {
+        "type": "object",
+        "required": ["name", "value"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name of the environment variable"
+          },
+          "value": {
+            "type": "string",
+            "description": "Value of the environment variable"
+          }
+        }
+      },
+      "default": []
+    },
+    "frontend": {
+      "type": "object",
+      "description": "Frontend configuration",
+      "properties": {
+        "replicaCount": {
+          "type": "integer",
+          "description": "Number of frontend replicas",
+          "minimum": 1,
+          "default": 1
+        },
+        "image": {
+          "type": "object",
+          "description": "Frontend container image configuration",
+          "properties": {
+            "repository": {
+              "type": "string",
+              "description": "Image repository"
+            },
+            "tag": {
+              "type": "string",
+              "description": "Image tag"
+            },
+            "pullPolicy": {
+              "type": "string",
+              "description": "Image pull policy",
+              "enum": ["Always", "IfNotPresent", "Never"],
+              "default": "IfNotPresent"
+            }
+          },
+          "required": ["repository", "tag"]
+        },
+        "service": {
+          "type": "object",
+          "description": "Frontend service configuration",
+          "properties": {
+            "type": {
+              "type": "string",
+              "description": "Service type",
+              "enum": ["ClusterIP", "NodePort", "LoadBalancer"],
+              "default": "NodePort"
+            },
+            "port": {
+              "type": "integer",
+              "description": "Service port",
+              "default": 3000
+            },
+            "nodePort": {
+              "type": ["integer", "null"],
+              "description": "NodePort to expose (if service type is NodePort)",
+              "minimum": 30000,
+              "maximum": 32767
+            }
+          }
+        },
+        "resources": {
+          "type": "object",
+          "description": "Resource requests and limits",
+          "properties": {
+            "requests": {
+              "type": "object",
+              "properties": {
+                "cpu": {
+                  "type": "string",
+                  "description": "CPU request",
+                  "default": "100m"
+                },
+                "memory": {
+                  "type": "string",
+                  "description": "Memory request",
+                  "default": "128Mi"
+                }
+              }
+            },
+            "limits": {
+              "type": "object",
+              "properties": {
+                "cpu": {
+                  "type": "string",
+                  "description": "CPU limit",
+                  "default": "200m"
+                },
+                "memory": {
+                  "type": "string",
+                  "description": "Memory limit",
+                  "default": "256Mi"
+                }
+              }
+            }
+          }
+        },
+        "extraEnvVars": {
+          "type": "array",
+          "description": "Additional environment variables for the frontend pod",
+          "items": {
+            "type": "object",
+            "required": ["name", "value"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Name of the environment variable"
+              },
+              "value": {
+                "type": "string",
+                "description": "Value of the environment variable"
+              }
+            }
+          },
+          "default": []
+        }
+      }
+    },
+    "chat": {
+      "type": "object",
+      "description": "Chat backend configuration",
+      "properties": {
+        "replicaCount": {
+          "type": "integer",
+          "description": "Number of chat replicas",
+          "minimum": 1,
+          "default": 1
+        },
+        "image": {
+          "type": "object",
+          "description": "Chat container image configuration",
+          "properties": {
+            "repository": {
+              "type": "string",
+              "description": "Image repository"
+            },
+            "tag": {
+              "type": "string",
+              "description": "Image tag"
+            },
+            "pullPolicy": {
+              "type": "string",
+              "description": "Image pull policy",
+              "enum": ["Always", "IfNotPresent", "Never"],
+              "default": "IfNotPresent"
+            }
+          },
+          "required": ["repository", "tag"]
+        },
+        "service": {
+          "type": "object",
+          "description": "Chat service configuration",
+          "properties": {
+            "type": {
+              "type": "string",
+              "description": "Service type",
+              "enum": ["ClusterIP", "NodePort", "LoadBalancer"],
+              "default": "NodePort"
+            },
+            "port": {
+              "type": "integer",
+              "description": "Service port",
+              "default": 8000
+            },
+            "nodePort": {
+              "type": ["integer", "null"],
+              "description": "NodePort to expose (if service type is NodePort)",
+              "minimum": 30000,
+              "maximum": 32767
+            }
+          }
+        },
+        "resources": {
+          "type": "object",
+          "description": "Resource requests and limits",
+          "properties": {
+            "requests": {
+              "type": "object",
+              "properties": {
+                "cpu": {
+                  "type": "string",
+                  "description": "CPU request",
+                  "default": "250m"
+                },
+                "memory": {
+                  "type": "string",
+                  "description": "Memory request",
+                  "default": "512Mi"
+                }
+              }
+            },
+            "limits": {
+              "type": "object",
+              "properties": {
+                "cpu": {
+                  "type": "string",
+                  "description": "CPU limit",
+                  "default": "500m"
+                },
+                "memory": {
+                  "type": "string",
+                  "description": "Memory limit",
+                  "default": "1Gi"
+                }
+              }
+            }
+          }
+        },
+        "extraEnvVars": {
+          "type": "array",
+          "description": "Additional environment variables for the chat pod",
+          "items": {
+            "type": "object",
+            "required": ["name", "value"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Name of the environment variable"
+              },
+              "value": {
+                "type": "string",
+                "description": "Value of the environment variable"
+              }
+            }
+          },
+          "default": []
+        }
+      }
+    },
+    "codegen": {
+      "type": "object",
+      "description": "Codegen backend configuration",
+      "properties": {
+        "replicaCount": {
+          "type": "integer",
+          "description": "Number of codegen replicas",
+          "minimum": 1,
+          "default": 1
+        },
+        "image": {
+          "type": "object",
+          "description": "Codegen container image configuration",
+          "properties": {
+            "repository": {
+              "type": "string",
+              "description": "Image repository"
+            },
+            "tag": {
+              "type": "string",
+              "description": "Image tag"
+            },
+            "pullPolicy": {
+              "type": "string",
+              "description": "Image pull policy",
+              "enum": ["Always", "IfNotPresent", "Never"],
+              "default": "IfNotPresent"
+            }
+          },
+          "required": ["repository", "tag"]
+        },
+        "service": {
+          "type": "object",
+          "description": "Codegen service configuration",
+          "properties": {
+            "type": {
+              "type": "string",
+              "description": "Service type",
+              "enum": ["ClusterIP", "NodePort", "LoadBalancer"],
+              "default": "NodePort"
+            },
+            "port": {
+              "type": "integer",
+              "description": "Service port",
+              "default": 8000
+            },
+            "nodePort": {
+              "type": ["integer", "null"],
+              "description": "NodePort to expose (if service type is NodePort)",
+              "minimum": 30000,
+              "maximum": 32767
+            }
+          }
+        },
+        "resources": {
+          "type": "object",
+          "description": "Resource requests and limits",
+          "properties": {
+            "requests": {
+              "type": "object",
+              "properties": {
+                "cpu": {
+                  "type": "string",
+                  "description": "CPU request",
+                  "default": "250m"
+                },
+                "memory": {
+                  "type": "string",
+                  "description": "Memory request",
+                  "default": "512Mi"
+                }
+              }
+            },
+            "limits": {
+              "type": "object",
+              "properties": {
+                "cpu": {
+                  "type": "string",
+                  "description": "CPU limit",
+                  "default": "500m"
+                },
+                "memory": {
+                  "type": "string",
+                  "description": "Memory limit",
+                  "default": "1Gi"
+                }
+              }
+            }
+          }
+        },
+        "extraEnvVars": {
+          "type": "array",
+          "description": "Additional environment variables for the codegen pod",
+          "items": {
+            "type": "object",
+            "required": ["name", "value"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Name of the environment variable"
+              },
+              "value": {
+                "type": "string",
+                "description": "Value of the environment variable"
+              }
+            }
+          },
+          "default": []
+        }
+      }
+    },
+    "knowledgeMcp": {
+      "type": "object",
+      "description": "Knowledge MCP configuration",
+      "properties": {
+        "replicaCount": {
+          "type": "integer",
+          "description": "Number of knowledge MCP replicas",
+          "minimum": 1,
+          "default": 1
+        },
+        "image": {
+          "type": "object",
+          "description": "Knowledge MCP container image configuration",
+          "properties": {
+            "repository": {
+              "type": "string",
+              "description": "Image repository"
+            },
+            "tag": {
+              "type": "string",
+              "description": "Image tag"
+            },
+            "pullPolicy": {
+              "type": "string",
+              "description": "Image pull policy",
+              "enum": ["Always", "IfNotPresent", "Never"],
+              "default": "IfNotPresent"
+            }
+          },
+          "required": ["repository", "tag"]
+        },
+        "service": {
+          "type": "object",
+          "description": "Knowledge MCP service configuration",
+          "properties": {
+            "type": {
+              "type": "string",
+              "description": "Service type",
+              "enum": ["ClusterIP", "NodePort", "LoadBalancer"],
+              "default": "ClusterIP"
+            },
+            "port": {
+              "type": "integer",
+              "description": "Service port",
+              "default": 8030
+            }
+          }
+        },
+        "resources": {
+          "type": "object",
+          "description": "Resource requests and limits",
+          "properties": {
+            "requests": {
+              "type": "object",
+              "properties": {
+                "cpu": {
+                  "type": "string",
+                  "description": "CPU request",
+                  "default": "250m"
+                },
+                "memory": {
+                  "type": "string",
+                  "description": "Memory request",
+                  "default": "512Mi"
+                }
+              }
+            },
+            "limits": {
+              "type": "object",
+              "properties": {
+                "cpu": {
+                  "type": "string",
+                  "description": "CPU limit",
+                  "default": "500m"
+                },
+                "memory": {
+                  "type": "string",
+                  "description": "Memory limit",
+                  "default": "1Gi"
+                }
+              }
+            }
+          }
+        },
+        "readinessProbe": {
+          "type": "object",
+          "description": "Readiness probe configuration",
+          "properties": {
+            "initialDelaySeconds": {
+              "type": "integer",
+              "description": "Initial delay seconds",
+              "default": 210
+            },
+            "periodSeconds": {
+              "type": "integer",
+              "description": "Period seconds",
+              "default": 10
+            },
+            "failureThreshold": {
+              "type": "integer",
+              "description": "Failure threshold",
+              "default": 15
+            }
+          }
+        },
+        "livenessProbe": {
+          "type": "object",
+          "description": "Liveness probe configuration",
+          "properties": {
+            "initialDelaySeconds": {
+              "type": "integer",
+              "description": "Initial delay seconds",
+              "default": 210
+            },
+            "periodSeconds": {
+              "type": "integer",
+              "description": "Period seconds",
+              "default": 10
+            },
+            "failureThreshold": {
+              "type": "integer",
+              "description": "Failure threshold",
+              "default": 15
+            }
+          }
+        },
+        "extraEnvVars": {
+          "type": "array",
+          "description": "Additional environment variables for the knowledge MCP pod",
+          "items": {
+            "type": "object",
+            "required": ["name", "value"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Name of the environment variable"
+              },
+              "value": {
+                "type": "string",
+                "description": "Value of the environment variable"
+              }
+            }
+          },
+          "default": []
+        }
+      }
+    },
+    "coderun": {
+      "type": "object",
+      "description": "Coderun configuration",
+      "properties": {
+        "replicaCount": {
+          "type": "integer",
+          "description": "Number of coderun replicas",
+          "minimum": 1,
+          "default": 1
+        },
+        "image": {
+          "type": "object",
+          "description": "Coderun container image configuration",
+          "properties": {
+            "repository": {
+              "type": "string",
+              "description": "Image repository"
+            },
+            "tag": {
+              "type": "string",
+              "description": "Image tag"
+            },
+            "pullPolicy": {
+              "type": "string",
+              "description": "Image pull policy",
+              "enum": ["Always", "IfNotPresent", "Never"],
+              "default": "IfNotPresent"
+            }
+          },
+          "required": ["repository", "tag"]
+        },
+        "service": {
+          "type": "object",
+          "description": "Coderun service configuration",
+          "properties": {
+            "type": {
+              "type": "string",
+              "description": "Service type",
+              "enum": ["ClusterIP", "NodePort", "LoadBalancer"],
+              "default": "NodePort"
+            },
+            "port": {
+              "type": "integer",
+              "description": "Service port",
+              "default": 8000
+            },
+            "nodePort": {
+              "type": ["integer", "null"],
+              "description": "NodePort to expose (if service type is NodePort)",
+              "minimum": 30000,
+              "maximum": 32767
+            }
+          }
+        },
+        "resources": {
+          "type": "object",
+          "description": "Resource requests and limits",
+          "properties": {
+            "requests": {
+              "type": "object",
+              "properties": {
+                "cpu": {
+                  "type": "string",
+                  "description": "CPU request",
+                  "default": "100m"
+                },
+                "memory": {
+                  "type": "string",
+                  "description": "Memory request",
+                  "default": "128Mi"
+                }
+              }
+            },
+            "limits": {
+              "type": "object",
+              "properties": {
+                "cpu": {
+                  "type": "string",
+                  "description": "CPU limit",
+                  "default": "200m"
+                },
+                "memory": {
+                  "type": "string",
+                  "description": "Memory limit",
+                  "default": "256Mi"
+                }
+              }
+            }
+          }
+        },
+        "extraEnvVars": {
+          "type": "array",
+          "description": "Additional environment variables for the coderun pod",
+          "items": {
+            "type": "object",
+            "required": ["name", "value"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Name of the environment variable"
+              },
+              "value": {
+                "type": "string",
+                "description": "Value of the environment variable"
+              }
+            }
+          },
+          "default": []
+        }
+      }
+    },
+    "milvus": {
+      "type": "object",
+      "description": "Milvus configuration",
+      "properties": {
+        "image": {
+          "type": "object",
+          "description": "Milvus container image configuration",
+          "properties": {
+            "repository": {
+              "type": "string",
+              "description": "Image repository"
+            },
+            "tag": {
+              "type": "string",
+              "description": "Image tag"
+            },
+            "pullPolicy": {
+              "type": "string",
+              "description": "Image pull policy",
+              "enum": ["Always", "IfNotPresent", "Never"],
+              "default": "IfNotPresent"
+            }
+          },
+          "required": ["repository", "tag"]
+        },
+        "pvc": {
+          "type": "object",
+          "description": "Persistent volume claim configuration",
+          "properties": {
+            "storage": {
+              "type": "string",
+              "description": "Storage size",
+              "default": "4Gi"
+            }
+          }
+        },
+        "service": {
+          "type": "object",
+          "description": "Milvus service configuration",
+          "properties": {
+            "type": {
+              "type": "string",
+              "description": "Service type",
+              "enum": ["ClusterIP", "NodePort", "LoadBalancer"],
+              "default": "ClusterIP"
+            },
+            "grpcPort": {
+              "type": "integer",
+              "description": "gRPC port",
+              "default": 19530
+            },
+            "httpPort": {
+              "type": "integer",
+              "description": "HTTP port",
+              "default": 9091
+            }
+          }
+        },
+        "securityContext": {
+          "type": "object",
+          "description": "Security context for the Milvus pod"
+        },
+        "extraEnvVars": {
+          "type": "array",
+          "description": "Additional environment variables for the Milvus pod",
+          "items": {
+            "type": "object",
+            "required": ["name", "value"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Name of the environment variable"
+              },
+              "value": {
+                "type": "string",
+                "description": "Value of the environment variable"
+              }
+            }
+          },
+          "default": []
+        }
+      }
+    },
+    "knowledgePreloaderJob": {
+      "type": "object",
+      "description": "Knowledge preloader job configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether to enable the knowledge preloader job",
+          "default": true
+        },
+        "image": {
+          "type": "object",
+          "description": "Knowledge preloader job container image configuration",
+          "properties": {
+            "repository": {
+              "type": "string",
+              "description": "Image repository"
+            },
+            "tag": {
+              "type": "string",
+              "description": "Image tag"
+            },
+            "pullPolicy": {
+              "type": "string",
+              "description": "Image pull policy",
+              "enum": ["Always", "IfNotPresent", "Never"],
+              "default": "IfNotPresent"
+            }
+          },
+          "required": ["repository", "tag"]
+        },
+        "ttlSecondsAfterFinished": {
+          "type": "integer",
+          "description": "Time in seconds to keep the job logs around after completion",
+          "default": 3600
+        },
+        "backoffLimit": {
+          "type": "integer",
+          "description": "Number of retries before considering the job failed",
+          "default": 4
+        },
+        "resources": {
+          "type": "object",
+          "description": "Resource requests and limits",
+          "properties": {
+            "requests": {
+              "type": "object",
+              "properties": {
+                "cpu": {
+                  "type": "string",
+                  "description": "CPU request",
+                  "default": "500m"
+                },
+                "memory": {
+                  "type": "string",
+                  "description": "Memory request",
+                  "default": "1Gi"
+                }
+              }
+            },
+            "limits": {
+              "type": "object",
+              "properties": {
+                "cpu": {
+                  "type": "string",
+                  "description": "CPU limit",
+                  "default": "1"
+                },
+                "memory": {
+                  "type": "string",
+                  "description": "Memory limit",
+                  "default": "2Gi"
+                }
+              }
+            }
+          }
+        },
+        "extraEnvVars": {
+          "type": "array",
+          "description": "Additional environment variables for the knowledge preloader job pod",
+          "items": {
+            "type": "object",
+            "required": ["name", "value"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Name of the environment variable"
+              },
+              "value": {
+                "type": "string",
+                "description": "Value of the environment variable"
+              }
+            }
+          },
+          "default": []
+        },
+        "documentUrls": {
+          "type": "array",
+          "description": "URLs of documents to preload",
+          "items": {
+            "type": "string",
+            "description": "Document URL"
+          }
+        }
+      }
+    },
+    "maestro": {
+      "type": "object",
+      "description": "Maestro specific configurations",
+      "properties": {
+        "logLevel": {
+          "type": "string",
+          "description": "Log level for Maestro",
+          "enum": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+          "default": "INFO"
+        }
+      }
+    },
+    "ingress": {
+      "type": "object",
+      "description": "Ingress configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether to enable the ingress",
+          "default": false
+        },
+        "className": {
+          "type": "string",
+          "description": "Ingress class name",
+          "default": ""
+        },
+        "annotations": {
+          "type": "object",
+          "description": "Annotations for the ingress",
+          "default": {}
+        },
+        "host": {
+          "type": "string",
+          "description": "Host for the ingress"
+        },
+        "tls": {
+          "type": "object",
+          "description": "TLS configuration for the ingress",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Whether to enable TLS",
+              "default": false
+            },
+            "secretName": {
+              "type": "string",
+              "description": "Name of the TLS secret",
+              "default": ""
+            }
+          }
+        },
+        "controllerType": {
+          "type": "string",
+          "description": "Type of ingress controller",
+          "enum": ["nginx", "istio", "gce"],
+          "default": "nginx"
+        }
+      }
+    }
+  },
+  "required": ["global"]
+}

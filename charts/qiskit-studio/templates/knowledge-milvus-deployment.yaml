@@ -1,0 +1,80 @@
+{{- if .Values.milvus.image.repository -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-milvus
+  labels: {{- include "qiskit-studio.labels" . | nindent 4 }}
+    app.kubernetes.io/component: milvus
+spec:
+  replicas: 1 # Milvus standalone runs as a single replica
+  selector:
+    matchLabels:
+      {{- include "qiskit-studio.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: milvus
+  template:
+    metadata:
+      labels:
+        {{- include "qiskit-studio.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: milvus
+    spec:
+      securityContext: {{- toYaml .Values.milvus.securityContext | nindent 8 }}
+      containers:
+      - name: milvus
+        image: "{{ .Values.milvus.image.repository }}:{{ .Values.milvus.image.tag }}"
+        imagePullPolicy: {{ .Values.milvus.image.pullPolicy }}
+        command: ["/milvus/bin/milvus", "run", "standalone"]
+        env:
+{{- include "qiskit-studio.extraEnvVars" (dict "Values" .Values "extraEnvVars" .Values.milvus.extraEnvVars) | nindent 10 }}
+          - name: ETCD_USE_EMBED
+            value: "true"
+          - name: ETCD_DATA_DIR
+            value: "/var/lib/milvus/etcd"
+          - name: ETCD_CONFIG_PATH
+            value: "/milvus/configs/embedEtcd.yaml"
+          - name: COMMON_STORAGETYPE
+            value: "local"
+          - name: DEPLOY_MODE
+            value: STANDALONE
+        ports:
+          - name: grpc
+            containerPort: {{ .Values.milvus.service.grpcPort }}
+          - name: http
+            containerPort: {{ .Values.milvus.service.httpPort }}
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 15
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 15
+        volumeMounts:
+          - name: milvus-data
+            mountPath: /var/lib/milvus
+          - name: milvus-config
+            mountPath: /milvus/configs/embedEtcd.yaml
+            subPath: embedEtcd.yaml
+          - name: milvus-config
+            mountPath: /milvus/configs/user.yaml
+            subPath: user.yaml
+      volumes:
+        - name: milvus-data
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-milvus-pvc
+        - name: milvus-config
+          configMap:
+            name: {{ .Release.Name }}-milvus-config
+      {{- $pullSecret := include "qiskit-studio.imagePullSecretName" . }}
+      {{- if $pullSecret }}
+      imagePullSecrets:
+        - name: {{ $pullSecret }}
+      {{- end }}
+{{- end }}

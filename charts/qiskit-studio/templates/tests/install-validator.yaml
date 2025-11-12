@@ -1,0 +1,205 @@
+# TODO: This file contains multiple tests for different services. For better readability, maintainability,
+# and clearer failure identification, it is recommended to split these tests into separate files,
+# with each file focusing on a single service or logical component. This aligns with Helm's
+# modularity principles and allows for more granular testing and easier debugging.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "qiskit-studio.fullname" . }}-install-validator"
+  labels:
+    {{- include "qiskit-studio.labels" . | nindent 4 }}
+    app.kubernetes.io/component: test
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: test-connection
+      image: curlimages/curl:8.16.0
+      command: ["sh", "-c"]
+      volumeMounts:
+        - name: vllm-api-key-volume
+          mountPath: "/var/run/secrets/chat-llm-secret"
+          readOnly: true
+        - name: vllm-embedding-api-key-volume
+          mountPath: "/var/run/secrets/embedding-llm-secret"
+          readOnly: true
+      args:
+        - |
+          TEST_FAILED=false
+          FAILED_TESTS=""
+
+          record_test_result() {
+            TEST_NAME=$1
+            RESULT=$2
+            if [ "$RESULT" = "PASSED" ]; then
+              echo "$TEST_NAME: PASSED"
+            else
+              echo "$TEST_NAME: FAILED"
+              TEST_FAILED=true
+              FAILED_TESTS="${FAILED_TESTS}\n- ${TEST_NAME}"
+            fi
+          }
+
+          echo "Running Helm Chart Installation Validation Tests..."
+
+          # Test 1: External LLM Chat service
+          echo "Testing External LLM Chat service ({{ .Values.global.llm.chat.baseUrl }})..."
+          CHAT_LLM_URL="{{ .Values.global.llm.chat.baseUrl }}/chat/completions"
+          API_KEY=$(cat /var/run/secrets/chat-llm-secret/{{ .Values.global.llm.chat.secret.key }})
+          RESPONSE_DATA=$(curl -s -L --max-time 35 -w "\\n%{http_code}" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $API_KEY" \
+            -d '{"messages": [{"role": "user", "content": "Hello"}], "model": {{ .Values.global.llm.chat.model | quote }}}' \
+            "$CHAT_LLM_URL")
+          CURL_EXIT_CODE=$?
+          if [ $CURL_EXIT_CODE -ne 0 ]; then
+            echo "FAILED: Could not connect to External LLM Chat service (curl exit code: $CURL_EXIT_CODE)."
+            record_test_result "External LLM Chat service" "FAILED"
+          else
+            CHAT_LLM_HTTP_CODE=$(echo "$RESPONSE_DATA" | tail -n 1)
+            CHAT_LLM_RESPONSE_BODY=$(echo "$RESPONSE_DATA" | sed '$d')
+            if [ "$CHAT_LLM_HTTP_CODE" -eq 200 ]; then
+              if echo "$CHAT_LLM_RESPONSE_BODY" | grep -q '"choices"'; then
+                record_test_result "External LLM Chat service" "PASSED"
+              else
+                echo "FAILED: Response body from chat service did not contain 'choices'."
+                record_test_result "External LLM Chat service" "FAILED"
+              fi
+            else
+              echo "FAILED: HTTP status code from chat service was $CHAT_LLM_HTTP_CODE."
+              record_test_result "External LLM Chat service" "FAILED"
+            fi
+          fi
+
+          # Test 2: External LLM Embeddings service
+          echo "Testing External LLM Embeddings service ({{ .Values.global.llm.embedding.baseUrl }}/embeddings)..."
+          EMBEDDING_LLM_URL="{{ .Values.global.llm.embedding.baseUrl }}/embeddings"
+          API_KEY=$(cat /var/run/secrets/embedding-llm-secret/{{ .Values.global.llm.embedding.secret.key }})
+          RESPONSE_DATA=$(curl -s -L --max-time 35 -w "\\n%{http_code}" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $API_KEY" \
+            -d '{"input": "Test embedding", "model": {{ .Values.global.llm.embedding.model | quote }}}' \
+            "$EMBEDDING_LLM_URL")
+          CURL_EXIT_CODE=$?
+          if [ $CURL_EXIT_CODE -ne 0 ]; then
+            echo "FAILED: Could not connect to External LLM Embeddings service (curl exit code: $CURL_EXIT_CODE)."
+            record_test_result "External LLM Embeddings service" "FAILED"
+          else
+            EMBEDDING_LLM_HTTP_CODE=$(echo "$RESPONSE_DATA" | tail -n 1)
+            EMBEDDING_LLM_RESPONSE_BODY=$(echo "$RESPONSE_DATA" | sed '$d')
+            if [ "$EMBEDDING_LLM_HTTP_CODE" -eq 200 ]; then
+              if echo "$EMBEDDING_LLM_RESPONSE_BODY" | grep -q '"embedding"'; then
+                record_test_result "External LLM Embeddings service" "PASSED"
+              else
+                echo "FAILED: Response body from embedding service did not contain 'embedding'."
+                record_test_result "External LLM Embeddings service" "FAILED"
+              fi
+            else
+              echo "FAILED: HTTP status code from embedding service was $EMBEDDING_LLM_HTTP_CODE."
+              record_test_result "External LLM Embeddings service" "FAILED"
+            fi
+          fi
+
+          # Test 3: Chat service
+          echo "Testing Chat service (http://{{ .Release.Name }}-chat:{{ .Values.chat.service.port }}/chat)..."
+          RESPONSE_DATA=$(curl -s --max-time 35 -w "\n%{http_code}" -H "Content-Type: application/json" -d '{"prompt": "What quantum algorithms do you know about?"}' http://{{ .Release.Name }}-chat:{{ .Values.chat.service.port }}/chat)
+          CURL_EXIT_CODE=$?
+          if [ $CURL_EXIT_CODE -ne 0 ]; then
+            echo "FAILED: Could not connect to internal Chat service (curl exit code: $CURL_EXIT_CODE)."
+            record_test_result "Chat service" "FAILED"
+          else
+            CHAT_HTTP_CODE=$(echo "$RESPONSE_DATA" | tail -n 1)
+            CHAT_RESPONSE_BODY=$(echo "$RESPONSE_DATA" | sed '$d')
+            if [ "$CHAT_HTTP_CODE" -eq 200 ]; then
+              if [ -n "$CHAT_RESPONSE_BODY" ]; then
+                record_test_result "Chat service" "PASSED"
+              else
+                echo "FAILED: Chat service returned HTTP 200 but with an empty body."
+                record_test_result "Chat service" "FAILED"
+              fi
+            else
+              echo "FAILED: HTTP status code from Chat service was $CHAT_HTTP_CODE."
+              record_test_result "Chat service" "FAILED"
+            fi
+          fi
+
+          # Test 4: Codegen service
+          echo "Testing Codegen service (http://{{ .Release.Name }}-codegen:{{ .Values.codegen.service.port }}/chat)..."
+          RESPONSE_DATA=$(curl -s --max-time 35 -w "\n%{http_code}" -H "Content-Type: application/json" -d '{"prompt": "Test Codegen connection"}' http://{{ .Release.Name }}-codegen:{{ .Values.codegen.service.port }}/chat)
+          CURL_EXIT_CODE=$?
+          if [ $CURL_EXIT_CODE -ne 0 ]; then
+            echo "FAILED: Could not connect to Codegen service (curl exit code: $CURL_EXIT_CODE)."
+            record_test_result "Codegen service" "FAILED"
+          else
+            CODEGEN_HTTP_CODE=$(echo "$RESPONSE_DATA" | tail -n 1)
+            CODEGEN_RESPONSE_BODY=$(echo "$RESPONSE_DATA" | sed '$d')
+            if [ "$CODEGEN_HTTP_CODE" -eq 200 ]; then
+              if [ -n "$CODEGEN_RESPONSE_BODY" ]; then
+                record_test_result "Codegen service" "PASSED"
+              else
+                echo "FAILED: Codegen service returned HTTP 200 but with an empty body."
+                record_test_result "Codegen service" "FAILED"
+              fi
+            else
+              echo "FAILED: HTTP status code from Codegen service was $CODEGEN_HTTP_CODE."
+              record_test_result "Codegen service" "FAILED"
+            fi
+          fi
+
+          # Test 5: Coderun service
+          echo "Testing Coderun service ({{ .Release.Name }}-coderun:{{ .Values.coderun.service.port }})..."
+          apk add --no-cache netcat-openbsd > /dev/null 2>&1
+          if nc -z {{ .Release.Name }}-coderun {{ .Values.coderun.service.port }}; then
+            record_test_result "Coderun service" "PASSED"
+          else
+            record_test_result "Coderun service" "FAILED"
+          fi
+
+          # Test 6: Milvus service
+          echo "Testing Milvus service (http://{{ .Release.Name }}-milvus-service:{{ .Values.milvus.service.httpPort }}/healthz)..."
+          RESPONSE_DATA=$(curl -s --max-time 15 -w "\\n%{http_code}" http://{{ .Release.Name }}-milvus-service:{{ .Values.milvus.service.httpPort }}/healthz)
+          CURL_EXIT_CODE=$?
+          if [ $CURL_EXIT_CODE -ne 0 ]; then
+            echo "FAILED: Could not connect to Milvus service (curl exit code: $CURL_EXIT_CODE)."
+            record_test_result "Milvus service" "FAILED"
+          else
+            MILVUS_HTTP_CODE=$(echo "$RESPONSE_DATA" | tail -n 1)
+            MILVUS_RESPONSE_BODY=$(echo "$RESPONSE_DATA" | sed '$d')
+            if [ "$MILVUS_HTTP_CODE" -eq 200 ]; then
+              if echo "$MILVUS_RESPONSE_BODY" | grep -q "OK"; then
+                record_test_result "Milvus service" "PASSED"
+              else
+                echo "FAILED: Milvus health check did not return OK."
+                record_test_result "Milvus service" "FAILED"
+              fi
+            else
+              echo "FAILED: HTTP status code from Milvus service was $MILVUS_HTTP_CODE."
+              record_test_result "Milvus service" "FAILED"
+            fi
+          fi
+
+          # Test 7: Knowledge MCP service
+          echo "Testing Knowledge MCP service ({{ .Release.Name }}-knowledge-mcp-service:{{ .Values.knowledgeMcp.service.port }})..."
+          if nc -z {{ .Release.Name }}-knowledge-mcp-service {{ .Values.knowledgeMcp.service.port }}; then
+            record_test_result "Knowledge MCP service" "PASSED"
+          else
+            record_test_result "Knowledge MCP service" "FAILED"
+          fi
+
+          echo
+          echo "--- Test Summary ---"
+          if [ "$TEST_FAILED" = true ]; then
+            echo "Some tests failed:"
+            echo -e "$FAILED_TESTS"
+            exit 1
+          else
+            echo "All tests passed successfully."
+          fi
+  restartPolicy: Never
+  volumes:
+    - name: vllm-api-key-volume
+      secret:
+        secretName: {{ .Values.global.llm.chat.secret.name }}
+    - name: vllm-embedding-api-key-volume
+      secret:
+        secretName: {{ include "qiskit-studio.embeddingLlmSecretName" . }}

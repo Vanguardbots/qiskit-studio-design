@@ -1,0 +1,116 @@
+{{- if .Values.knowledgeMcp.replicaCount -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-knowledge-mcp
+  labels: {{- include "qiskit-studio.labels" . | nindent 4 }}
+    app.kubernetes.io/component: knowledge-mcp
+spec:
+  replicas: {{ .Values.knowledgeMcp.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "qiskit-studio.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: knowledge-mcp
+  template:
+    metadata:
+      labels:
+        {{- include "qiskit-studio.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: knowledge-mcp
+    spec:
+      initContainers:
+      {{- if .Values.global.llm.initChecks.enabled }}
+      - name: wait-for-embedding-llm
+        image: curlimages/curl:8.16.0
+        command:
+          - sh
+          - -c
+          - |
+            EMBEDDING_LLM_URL="{{ .Values.global.llm.embedding.baseUrl }}/embeddings";
+            API_KEY=$(cat /var/run/secrets/embedding-llm-secret/{{ .Values.global.llm.embedding.secret.key }});
+            echo "Testing External LLM Embeddings service ($EMBEDDING_LLM_URL)";
+            until RESPONSE_DATA=$(curl -s -L --max-time 35 -w "\n%{http_code}" \
+              -H "Content-Type: application/json" \
+              -H "Authorization: Bearer $API_KEY" \
+              -d '{"input": "Test embedding", "model": {{ .Values.global.llm.embedding.model | quote }}}' \
+              "$EMBEDDING_LLM_URL"); do
+              echo "Waiting for embedding LLM...";
+              sleep 5;
+            done;
+            CURL_EXIT_CODE=$?;
+            if [ $CURL_EXIT_CODE -ne 0 ]; then
+              echo "FAILED: Could not connect to External LLM Embeddings service (curl exit code: $CURL_EXIT_CODE).";
+              exit 1;
+            else
+              EMBEDDING_LLM_HTTP_CODE=$(echo "$RESPONSE_DATA" | tail -n 1);
+              EMBEDDING_LLM_RESPONSE_BODY=$(echo "$RESPONSE_DATA" | sed '$d');
+              if [ "$EMBEDDING_LLM_HTTP_CODE" -eq 200 ]; then
+                if echo "$EMBEDDING_LLM_RESPONSE_BODY" | grep -q '"embedding"'; then
+                  echo "External LLM Embeddings service: PASSED";
+                else
+                  echo "FAILED: Response body from embedding service did not contain 'embedding'.";
+                  exit 1;
+                fi;
+              else
+                echo "FAILED: HTTP status code from embedding service was $EMBEDDING_LLM_HTTP_CODE.";
+                exit 1;
+              fi;
+            fi;
+        volumeMounts:
+          - name: vllm-embedding-api-key-volume
+            mountPath: "/var/run/secrets/embedding-llm-secret"
+            readOnly: true
+      {{- end }}
+      - name: wait-for-milvus
+        image: busybox:1.37 # A small image with basic networking tools
+        command: ['sh', '-c', 'until nc -z {{ .Release.Name }}-milvus-service {{ .Values.milvus.service.httpPort }}; do echo waiting for milvus; sleep 2; done;']
+      volumes:
+        - name: vllm-embedding-api-key-volume
+          secret:
+            secretName: {{ include "qiskit-studio.embeddingLlmSecretName" . }}
+      containers:
+      - name: knowledge-mcp
+        image: "{{ .Values.knowledgeMcp.image.repository }}:{{ .Values.knowledgeMcp.image.tag }}"
+        imagePullPolicy: {{ .Values.knowledgeMcp.image.pullPolicy }}
+        env:
+{{- include "qiskit-studio.extraEnvVars" (dict "Values" .Values "extraEnvVars" .Values.knowledgeMcp.extraEnvVars) | nindent 8 }}
+        - name: VECTOR_DB_TYPE
+          value: milvus
+        - name: MILVUS_URI
+          value: "http://{{ .Release.Name }}-milvus-service:{{ .Values.milvus.service.grpcPort }}"
+        - name: CUSTOM_EMBEDDING_URL
+          value: {{ .Values.global.llm.embedding.baseUrl | quote }}
+        - name: CUSTOM_EMBEDDING_MODEL
+          value: {{ .Values.global.llm.embedding.model | quote }}
+        - name: CUSTOM_EMBEDDING_VECTORSIZE
+          value: {{ .Values.global.llm.embedding.vectorSize | quote }}
+        - name: CUSTOM_EMBEDDING_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "qiskit-studio.embeddingLlmSecretName" . }}
+              key: {{ .Values.global.llm.embedding.secret.key }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.knowledgeMcp.service.port }}
+        readinessProbe:
+          # TODO: Replace with httpGet probe to a dedicated /healthz endpoint when available in Maestro.
+          # This tcpSocket probe only checks for port connectivity, not application health.
+          tcpSocket:
+            port: http
+          initialDelaySeconds: {{ .Values.knowledgeMcp.readinessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.knowledgeMcp.readinessProbe.periodSeconds }}
+        livenessProbe:
+          # TODO: Replace with httpGet probe to a dedicated /healthz endpoint when available in Maestro.
+          # This tcpSocket probe only checks for port connectivity, not application health.
+          tcpSocket:
+            port: http
+          initialDelaySeconds: {{ .Values.knowledgeMcp.livenessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.knowledgeMcp.livenessProbe.periodSeconds }}
+        resources: {{- toYaml .Values.knowledgeMcp.resources | nindent 10 }}
+      {{- $pullSecret := include "qiskit-studio.imagePullSecretName" . }}
+      {{- if $pullSecret }}
+      imagePullSecrets:
+        - name: {{ $pullSecret }}
+      {{- end }}
+{{- end }}
+
+# Made with Bob

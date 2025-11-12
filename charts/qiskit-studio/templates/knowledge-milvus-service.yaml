@@ -1,0 +1,22 @@
+{{- if .Values.milvus.image.repository -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-milvus-service
+  labels: {{- include "qiskit-studio.labels" . | nindent 4 }}
+    app.kubernetes.io/component: milvus
+spec:
+  type: {{ .Values.milvus.service.type }}
+  ports:
+    - name: grpc
+      protocol: TCP
+      port: {{ .Values.milvus.service.grpcPort }}
+      targetPort: {{ .Values.milvus.service.grpcPort }}
+    - name: http
+      protocol: TCP
+      port: {{ .Values.milvus.service.httpPort }}
+      targetPort: {{ .Values.milvus.service.httpPort }}
+  selector:
+    {{- include "qiskit-studio.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: milvus
+{{- end }}

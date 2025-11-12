@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-codegen
+  labels: {{- include "qiskit-studio.labels" . | nindent 4 }}
+    app.kubernetes.io/component: codegen
+spec:
+  replicas: {{ .Values.codegen.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "qiskit-studio.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: codegen
+  template:
+    metadata:
+      labels:
+        {{- include "qiskit-studio.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: codegen
+    spec:
+      {{- if .Values.global.llm.initChecks.enabled }}
+      initContainers:
+      - name: wait-for-chat-llm
+        image: curlimages/curl:8.16.0
+        command: ["sh", "-c"]
+        args:
+          - |
+            set -x # Enable shell debugging
+            echo "Waiting for chat LLM..."
+            API_KEY=$(cat /var/run/secrets/chat-llm-secret/{{ .Values.global.llm.chat.secret.key }})
+            until curl -s -f -H "Authorization: Bearer $API_KEY" {{ .Values.global.llm.chat.baseUrl }}/models; do
+              echo "Still waiting for chat LLM..."
+              sleep 5
+            done
+            echo "Chat LLM is available."
+
+            echo "Testing External LLM chat service ({{ .Values.global.llm.chat.baseUrl }})...";
+            CHAT_LLM_URL="{{ .Values.global.llm.chat.baseUrl }}/chat/completions"
+            API_KEY=$(cat /var/run/secrets/chat-llm-secret/{{ .Values.global.llm.chat.secret.key }})
+            until HTTP_CODE=$(curl -s -L -o /dev/null --max-time 35 -w "%{http_code}" -H "Content-Type: application/json" -H "Authorization: Bearer $API_KEY" -d '{"messages": [{"role": "user", "content": "Hello"}], "model": {{ .Values.global.llm.chat.model | quote }}}' "$CHAT_LLM_URL") && CURL_EXIT_CODE=$? && [ "$CURL_EXIT_CODE" -eq 0 ] && [ "$HTTP_CODE" -eq 200 ]; do
+              echo "Still waiting for External LLM Chat service... (DEBUG: HTTP_CODE=$CHAT_LLM_HTTP_CODE)"
+              sleep 5
+            done
+            echo "External LLM chat service is available."
+        volumeMounts:
+          - name: vllm-api-key-volume
+            mountPath: "/var/run/secrets/chat-llm-secret"
+            readOnly: true
+      {{- end }}
+      containers:
+      - name: codegen
+        image: "{{ .Values.codegen.image.repository }}:{{ .Values.codegen.image.tag }}"
+        imagePullPolicy: {{ .Values.codegen.image.pullPolicy }}
+        command:
+          - "/bin/sh"
+          - "-c"
+          - |
+            sed -i 's|granite3.3:8b|{{ .Values.global.llm.chat.model }}|g' agents.yaml && \
+            maestro serve agents.yaml workflow.yaml --host 0.0.0.0
+        ports:
+        - containerPort: {{ .Values.codegen.service.port }}
+        env:
+{{- include "qiskit-studio.extraEnvVars" (dict "Values" .Values "extraEnvVars" .Values.codegen.extraEnvVars) | nindent 8 }}
+        - name: LOG_LEVEL
+          value: {{ .Values.maestro.logLevel | quote }}
+        - name: CORS_ALLOW_ORIGINS
+          value: {{ include "qiskit-studio.frontend.origin" . | quote }}
+        - name: OPENAI_BASE_URL
+          value: {{ .Values.global.llm.chat.baseUrl | quote }}
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "qiskit-studio.llmSecretName" . }}
+              key: {{ .Values.global.llm.chat.secret.key }}
+        readinessProbe:
+          tcpSocket:
+            port: {{ .Values.codegen.service.port }}
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 5
+        livenessProbe:
+          tcpSocket:
+            port: {{ .Values.codegen.service.port }}
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+      {{- $pullSecret := include "qiskit-studio.imagePullSecretName" . }}
+      {{- if $pullSecret }}
+      imagePullSecrets:
+        - name: {{ $pullSecret }}
+      {{- end }}
+      volumes:
+      - name: vllm-api-key-volume
+        secret:
+          secretName: {{ include "qiskit-studio.llmSecretName" . }}
+
+# Made with Bob

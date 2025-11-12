@@ -1,0 +1,84 @@
+{{- if .Values.ingress.enabled | default false -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}-ingress-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/component: ingress-api
+    app.kubernetes.io/version: {{ .Chart.AppVersion }}
+  annotations:
+{{- if eq .Values.ingress.controllerType "nginx" }}
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/use-regex: "true"
+{{- else if eq .Values.ingress.controllerType "f5" }}
+    virtual-server.f5.com/uri-rewrite: |
+      [
+        { "path": "/chat/(.*)", "rewrite": "/$1" },
+        { "path": "/codegen/(.*)", "rewrite": "/$1" },
+        { "path": "/coderun/(.*)", "rewrite": "/$1" }
+      ]
+{{- end }}
+{{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+{{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  rules:
+  - host: {{ .Values.ingress.host }}
+    http:
+      paths:
+{{- if eq .Values.ingress.controllerType "nginx" }}
+      - path: /chat(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: {{ .Release.Name }}-chat
+            port:
+              number: {{ .Values.chat.service.port }}
+      - path: /codegen(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: {{ .Release.Name }}-codegen
+            port:
+              number: {{ .Values.codegen.service.port }}
+      - path: /coderun(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: {{ .Release.Name }}-coderun
+            port:
+              number: {{ .Values.coderun.service.port }}
+{{- else if eq .Values.ingress.controllerType "f5" }}
+      - path: /chat
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ .Release.Name }}-chat
+            port:
+              number: {{ .Values.chat.service.port }}
+      - path: /codegen
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ .Release.Name }}-codegen
+            port:
+              number: {{ .Values.codegen.service.port }}
+      - path: /coderun
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ .Release.Name }}-coderun
+            port:
+              number: {{ .Values.coderun.service.port }}
+{{- end }}
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+  - hosts:
+    - {{ .Values.ingress.host | quote }}
+    secretName: {{ .Values.ingress.tls.secretName }}
+  {{- end }}
+{{- end }}

@@ -1,0 +1,20 @@
+[project]
+name = "qiskit-studio-api-chat-agent"
+version = "0.1.0"
+description = "An API for an AI chat agent"
+authors = [
+    { name="Qiskit Studio Contributors" }
+]
+license = {text = "Apache-2.0"}
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+    "maestro @ git+https://github.com/AI4quantum/maestro.git@v0.8.0",
+]
+
+[dependency-groups]
+dev = [
+    "numpy==2.3.3",
+    "pymilvus==2.6.2",
+    "html2text==2025.4.15",
+]

@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "qiskit-studio.scriptsConfigMapName" . }}
+  labels:
+    {{- include "qiskit-studio.labels" . | nindent 4 }}
+data:
+  {{- range $path, $bytes := .Files.Glob "maestro/scripts/*" }}
+  {{- $file := base $path }}
+  {{ $file | quote }}: |-
+    {{ $.Files.Get $path | nindent 4 }}
+  {{- end }}

@@ -1,0 +1,67 @@
+# Helm values for deploying to a local kind environment with Ingress enabled.
+# This configuration uses Nginx as the ingress controller, aligning with cloud deployments.
+
+# To use Nginx Ingress Controller with Colima/K3s, you need to install it first.
+# 1. Add the Nginx Ingress Controller Helm repository:
+#    helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+# 2. Update your Helm repositories:
+#    helm repo update
+# 3. Install the Nginx Ingress Controller:
+#    helm install ingress-nginx ingress-nginx/ingress-nginx --namespace ingress-nginx --create-namespace
+# After installation, ensure the Nginx Ingress Controller pods are running in the 'ingress-nginx' namespace.
+
+# For Colima on macOS, you might need to explicitly forward ports 80 and 443.
+# You can do this by editing your Colima configuration:
+# colima start --edit
+# Add the following under 'network':
+#   ports:
+#     - "80:80"
+#     - "443:443"
+# Then restart Colima.
+
+global:
+  hostname: "127.0.0.1"
+  # For local development, you might use a different LLM service or a mock.
+  llm:
+    chat:
+      # For local development, the chat and embedding LLM secrets are shared by default for convenience.
+      # You can override these settings if you need separate secrets or different configurations.
+      model: "granite3.3:8b"
+      secret:
+        create: true # Enable secret creation
+        name: local-llm-secret
+        key: apiKey
+        value: "ollama-api-key" # Dummy value, as Ollama typically doesn't require an API key locally
+      baseUrl: http://host.docker.internal:11434/v1 # Example URL for a local LLM (Ollama default). Note: 'host.docker.internal' is a Docker Desktop feature. On Linux, you might need to use '--add-host host.docker.internal:host-gateway' with 'docker run' or replace with your host's IP address.
+      # The LLM model to use for chat and code generation. Default for local is 'granite3.3:8b'. For cloud, consider 'qwen2-5-coder-14b-qiskit'.
+    embedding:
+      baseUrl: http://host.docker.internal:11434/v1
+      secret:
+        name: local-llm-secret # Shared with chat LLM secret by default
+        key: apiKey # Shared with chat LLM secret by default
+  # Image pull secret configuration for IBM Container Registry (ICR)
+  # Easiest local usage (one-liner):
+  #   --set-string icrkey="$MYAPIKEY"
+  # or scoped alternative:
+  #   --set-string global.imagePullSecrets.value="$MYAPIKEY"
+  # Behavior:
+  # - If a key is provided via icrkey or global.imagePullSecrets.value and no existingSecret is set,
+  #   the chart will create or reuse a docker-registry Secret named <release>-icrkey by default.
+  # - To use a specific name, set global.imagePullSecrets.name.
+  # - To use a pre-existing Secret, set global.imagePullSecrets.name to that name.
+  imagePullSecrets:
+    name: null
+
+# Enable Ingress
+ingress:
+  enabled: true
+  className: "nginx" # Specify the ingress class name for Nginx
+  host: "qiskit-studio.local" # Example host. Remember to add this to your /etc/hosts file (e.g., 127.0.0.1 qiskit-studio.local)
+  annotations:
+    # Set a longer timeout for requests to handle long-running jobs.
+    # This prevents the Ingress controller from timing out while waiting for a response from the agent.
+    # The value is in seconds. 3600s = 60 minutes.
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+
+maestro:
+  logLevel: DEBUG
