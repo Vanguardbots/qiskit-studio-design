@@ -1,6 +1,6 @@
-# Qiskit Studio - Visual Quantum Computing Interface
+# Qiskit Studio - Visual Quantum Computing Interface [Preview]
 
-A powerful visual web interface powered by AI for quantum computing development with Qiskit. Build quantum circuits, algorithms, and experiments through an intuitive drag-and-drop interface.
+A visual web interface powered by AI for quantum computing development with Qiskit. Build quantum circuits, algorithms, and experiments through an intuitive drag-and-drop interface. This project is part of a set of experiments to generate code using AI tools.
 
 ![Screenshot of the Qiskit Studio Web Interface](public/screen.png)
 
@@ -199,7 +199,7 @@ npm run lint        # Run ESLint
 
 ## AI Development Assistant Support
 
-This project includes comprehensive guidance for AI-powered development tools. See [AGENTS.md](AGENTS.md) for:
+This project was co-generated using AI Code assistants. You can use [AGENTS.md](AGENTS.md) to facilitate your code assistant to work with this project:
 
 - **Development Commands**: Complete reference for build, test, and development workflows
 - **Architecture Overview**: Key components, node system, and integration patterns
@@ -207,7 +207,7 @@ This project includes comprehensive guidance for AI-powered development tools. S
 - **Debugging Support**: Troubleshooting AI-powered features and API connections
 
 **Supported AI Assistants:**
-- Bobshell (Cline), Claude Code, GitHub Copilot, Cursor AI, Codeium, Gemini CLI, and other AI development tools
+- [IBM Bob](https://www.ibm.com/products/bob), Claude Code, GitHub Copilot, Cursor AI, Codeium, Gemini CLI, and other AI development tools
 
 ## Contributing
 
