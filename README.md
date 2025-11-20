@@ -217,15 +217,6 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for:
 - Testing procedures
 - Code style standards
 
-## Roadmap
-
-### Current Development
-- [ ] Enhanced AI code generation with specialized quantum agents
-- [ ] Extended quantum algorithm library with more patterns
-- [ ] Advanced visualization and analysis tools
-- [ ] Collaborative workspace features
-
-
 ## License
 
 This project is licensed under the Apache License 2.0. See [LICENSE](LICENSE) for details.
