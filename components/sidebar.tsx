@@ -5,13 +5,13 @@
 
 "use client"
 
+import { OptimizeIcon } from "@/components/icons/optimize-icon"
+import { ExecuteIcon } from "@/components/icons/execute-icon"
+import { PostProcessIcon } from "@/components/icons/post-process-icon"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
+import { MapIcon } from "@/components/icons/map-icon"
 import {
-  MapIcon,
-  Settings,
-  Play,
-  BarChart,
   ChevronDown,
   ChevronUp,
   Plus,
@@ -33,12 +33,12 @@ export function Sidebar({ onAddNode, onLoadDemo }: SidebarProps) {
     {
       id: "map",
       name: "Map",
-      icon: <MapIcon className="h-4 w-4" />,
+      icon: <MapIcon className="h-4 w-4 text-black" />,
       nodes: [
         {
           id: "quantumInfoNode",
           name: "Quantum Info Library",
-          data: { label: "Quantum info library", category: "Hamiltonian" },
+          data: { label: "Quantum Info Library", category: "Hamiltonian" },
         },
         {
           id: "circuitLibraryNode",
@@ -48,14 +48,14 @@ export function Sidebar({ onAddNode, onLoadDemo }: SidebarProps) {
         {
           id: "chemistryNode",
           name: "Chemistry",
-          data: { 
-            label: "Chemistry", 
+          data: {
+            label: "Chemistry",
             category: "Molecular System",
             pythonCode: `# H₂ - testbed molecule
 # Basis set options: Adaptive minimal (~2 qubits), STO-3G (~2 qubits)
 mol = pyscf.gto.Mole()
 mol.build(
-    atom=[["H", (0.0, 0.0, 0.0)], ["H", (0.74, 0.0, 0.0)]],  # bond length ~0.74 Å
+    atom=[["H", (0.0, 0.0, 0.0)], ["H", (0.74, 0.0, 0.0)]],  // bond length ~0.74 Å
     basis="sto-3g",
     spin=0,
     charge=0
@@ -65,8 +65,8 @@ mol.build(
         {
           id: "chemistryMapNode",
           name: "Chemistry Map",
-          data: { 
-            label: "Chemistry Map", 
+          data: {
+            label: "Chemistry Map",
             category: "Molecular System",
             inputValue: `atom=[["N", (0, 0, 0)], ["N", (1.0, 0, 0)]],\nbasis="6-31g",\nsymmetry="Dooh"`,
             placeholder: "Define molecular parameters",
@@ -76,8 +76,8 @@ mol.build(
         {
           id: "pythonNode",
           name: "Python Code",
-          data: { 
-            label: "Python Code", 
+          data: {
+            label: "Python Code",
             category: "Python",
             placeholder: "Enter Python code...",
             details: "Custom Python code block"
@@ -88,7 +88,7 @@ mol.build(
     {
       id: "optimize",
       name: "Optimize",
-      icon: <Settings className="h-4 w-4" />,
+      icon: <OptimizeIcon className="h-4 w-4 text-black" />,
       nodes: [
         {
           id: "transpilerNode",
@@ -105,35 +105,35 @@ mol.build(
     {
       id: "execute",
       name: "Execute",
-      icon: <Play className="h-4 w-4" />,
+      icon: <ExecuteIcon className="h-4 w-4 text-black" />,
       nodes: [
         {
           id: "executionNode",
           name: "Execution Modes",
-          data: { label: "Execution modes" },
+          data: { label: "Execution Modes" },
         },
         {
           id: "runtimeNode",
           name: "Runtime Primitives",
-          data: { label: "Runtime primitives", category: "Estimator", loopCount: 10 },
+          data: { label: "Runtime Primitives", category: "Estimator", loopCount: 10 },
         },
       ],
     },
     {
       id: "post-process",
       name: "Post-process",
-      icon: <BarChart className="h-4 w-4" />,
+      icon: <PostProcessIcon className="h-4 w-4 text-black" />,
       nodes: [
         {
           id: "visualizationNode",
           name: "Visualization Module",
-          data: { label: "Visualization module", category: "Undirected Graph" },
+          data: { label: "Visualization Module", category: "Undirected Graph" },
         },
         {
           id: "postProcessNode",
           name: "Post Process Code",
-          data: { 
-            label: "Post Process Code", 
+          data: {
+            label: "Post Process Code",
             category: "Python",
             placeholder: "Enter Python code for post-processing...",
             details: "Custom Python code for post-processing results"
@@ -151,11 +151,10 @@ mol.build(
           <div key={section.id} className="space-y-1">
             <Button
               variant={activeSection === section.id ? "secondary" : "ghost"}
-              className={`w-full justify-start text-xs font-medium rounded-lg backdrop-blur-sm ${
-                activeSection === section.id
-                  ? "bg-[#e6e6ff]/90 text-[#5a5ad9] hover:bg-[#d9d9ff]/90 shadow-md"
-                  : "text-[#444] hover:bg-[#e9e9e9]/90 hover:text-[#222] bg-white/80 shadow-sm"
-              }`}
+              className={`w-full justify-start text-xs font-medium rounded-lg backdrop-blur-sm ${activeSection === section.id
+                ? "bg-[#e6e6ff]/90 text-[#5a5ad9] hover:bg-[#d9d9ff]/90 shadow-md"
+                : "text-[#444] hover:bg-[#e9e9e9]/90 hover:text-[#222] bg-white/80 shadow-sm"
+                }`}
               onClick={() => setActiveSection(activeSection === section.id ? null : section.id)}
             >
               {section.icon}
@@ -180,17 +179,16 @@ mol.build(
                       setActiveSection(null) // Collapse all sections after adding a node
                     }}
                   >
-                    <Plus className={`mr-2 h-3 w-3 ${
-                      ['quantumInfoNode', 'circuitLibraryNode', 'chemistryNode', 'chemistryMapNode', 'pythonNode'].includes(node.id)
-                        ? "text-[#D02771]"
-                        : ['transpilerNode', 'transpilerPassNode'].includes(node.id)
-                          ? "text-[#893FFC]"
-                          : ['executionNode', 'runtimeNode'].includes(node.id)
-                            ? "text-[#0E62FE]"
-                            : ['postProcessNode', 'visualizationNode'].includes(node.id)
-                              ? "text-[#1A8038]"
-                              : "text-[#666]"
-                    }`} />
+                    <Plus className={`mr-2 h-3 w-3 ${['quantumInfoNode', 'circuitLibraryNode', 'chemistryNode', 'chemistryMapNode', 'pythonNode'].includes(node.id)
+                      ? "text-[#D02771]"
+                      : ['transpilerNode', 'transpilerPassNode'].includes(node.id)
+                        ? "text-[#893FFC]"
+                        : ['executionNode', 'runtimeNode'].includes(node.id)
+                          ? "text-[#0E62FE]"
+                          : ['postProcessNode', 'visualizationNode'].includes(node.id)
+                            ? "text-[#1A8038]"
+                            : "text-[#666]"
+                      }`} />
                     <span className="text-[#333] hover:text-[#3a3a99]">{node.name}</span>
                   </Button>
                 ))}
@@ -199,11 +197,11 @@ mol.build(
           </div>
         ))}
       </div>
-      
+
       {/* Demos section - bottom left */}
       <div className="absolute left-4 bottom-4 z-50 w-64">
         <div className="bg-[#2563EB]/90 text-white p-2 rounded-lg backdrop-blur-sm shadow-md">
-          <div 
+          <div
             className="flex items-center justify-between cursor-pointer hover:bg-white/10 rounded p-1 transition-colors w-full"
             onClick={() => setIsDemosCollapsed(!isDemosCollapsed)}
           >
