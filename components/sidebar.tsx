@@ -11,6 +11,7 @@ import { PostProcessIcon } from "@/components/icons/post-process-icon"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { MapIcon } from "@/components/icons/map-icon"
+import { TemplatesIcon } from "@/components/icons/templates-icon"
 import {
   ChevronDown,
   ChevronUp,
@@ -198,43 +199,45 @@ mol.build(
         ))}
       </div>
 
-      {/* Demos section - bottom left */}
+
+      {/* Qiskit Function Templates section - bottom left */}
       <div className="absolute left-4 bottom-4 z-50 w-64">
-        <div className="bg-[#2563EB]/90 text-white p-2 rounded-lg backdrop-blur-sm shadow-md">
-          <div
-            className="flex items-center justify-between cursor-pointer hover:bg-white/10 rounded p-1 transition-colors w-full"
-            onClick={() => setIsDemosCollapsed(!isDemosCollapsed)}
-          >
-            <div className="flex items-center">
-              {isDemosCollapsed ? (
-                <ChevronDown className="h-4 w-4 mr-2" />
-              ) : (
-                <ChevronUp className="h-4 w-4 mr-2" />
-              )}
-              <span className="text-xs font-medium">Custom Qiskit Functions</span>
-            </div>
-          </div>
-          {!isDemosCollapsed && (
-            <div className="space-y-1 mt-2">
-              {[
-                { id: "chemistry-simulation", name: "Chemistry Simulation", icon: Beaker },
-                { id: "max-cut", name: "Max Cut", icon: Network },
-                { id: "chsh-inequality", name: "CHSH Inequality", icon: LineChart },
-              ].map((demo) => (
-                <Button
-                  key={demo.id}
-                  variant="ghost"
-                  size="sm"
-                  className="w-full justify-start text-xs text-white hover:bg-[#3b74f3] transition-colors rounded-lg"
-                  onClick={() => onLoadDemo(demo.id)}
-                >
-                  <demo.icon className="mr-2 h-3 w-3" />
-                  <span>{demo.name}</span>
-                </Button>
-              ))}
-            </div>
+        <Button
+          variant={isDemosCollapsed ? "ghost" : "secondary"}
+          className={`w-full justify-start text-xs font-medium rounded-lg backdrop-blur-sm ${!isDemosCollapsed
+            ? "bg-[#e6e6ff]/90 text-[#5a5ad9] hover:bg-[#d9d9ff]/90 shadow-md"
+            : "text-[#444] hover:bg-[#e9e9e9]/90 hover:text-[#222] bg-white/80 shadow-sm"
+            }`}
+          onClick={() => setIsDemosCollapsed(!isDemosCollapsed)}
+        >
+          <TemplatesIcon className="h-4 w-4 text-black" />
+          <span className="ml-2">Qiskit Function Templates</span>
+          {!isDemosCollapsed ? (
+            <ChevronUp className="ml-auto h-4 w-4" />
+          ) : (
+            <ChevronDown className="ml-auto h-4 w-4" />
           )}
-        </div>
+        </Button>
+        {!isDemosCollapsed && (
+          <div className="ml-6 space-y-1 mt-1">
+            {[
+              { id: "chemistry-simulation", name: "Chemistry Simulation", icon: Beaker },
+              { id: "max-cut", name: "Max Cut", icon: Network },
+              { id: "chsh-inequality", name: "CHSH Inequality", icon: LineChart },
+            ].map((demo) => (
+              <Button
+                key={demo.id}
+                variant="ghost"
+                size="sm"
+                className="w-full justify-start text-xs text-[#333] font-medium hover:bg-[#f0f0ff]/90 hover:text-[#3a3a99] transition-colors rounded-lg bg-white/70 backdrop-blur-sm shadow-sm"
+                onClick={() => onLoadDemo(demo.id)}
+              >
+                <demo.icon className="mr-2 h-3 w-3 text-black" />
+                <span className="text-[#333] hover:text-[#3a3a99]">{demo.name}</span>
+              </Button>
+            ))}
+          </div>
+        )}
       </div>
     </>
   )
