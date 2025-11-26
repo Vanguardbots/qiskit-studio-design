@@ -55,6 +55,18 @@ function deobfuscateToken(obfuscated: string): string {
   }
 }
 
+// Helper function to get step badge color based on category
+function getStepBadgeColor(step: number): string {
+  switch (step) {
+    case 1: return '#D02771'; // Map
+    case 2: return '#893FFC'; // Optimize
+    case 3: return '#0E62FE'; // Execute
+    case 4: return '#1A8038'; // Post Process
+    default: return '#D02771'; // Default to Map color
+  }
+}
+
+
 interface Message {
   role: "user" | "assistant"
   content: string
@@ -742,7 +754,10 @@ export function CodePanel({ code, selectedNode, onSelectDemo, highlightSection, 
               <span className="text-sm font-medium ml-2 flex items-center">
                 Code
                 {highlightSection && (
-                  <span className="ml-2 bg-yellow-600 text-black px-2 py-1 rounded text-xs">
+                  <span
+                    className="ml-2 text-white px-2 py-1 rounded text-xs transition-all duration-300"
+                    style={{ backgroundColor: getStepBadgeColor(highlightSection.step) }}
+                  >
                     STEP {highlightSection.step}
                   </span>
                 )}
